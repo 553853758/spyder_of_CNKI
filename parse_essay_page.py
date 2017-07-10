@@ -58,7 +58,7 @@ class EssayPageParser(HTMLParser):
             self.keywords.append(data.split("\r")[0].replace("\n",""))
             self.is_keyword = False
         if self.is_title:
-            self.title=data.split("\r")[0].replace("\n","")
+            self.title=data.split("\r")[0].replace("\n","").replace("：","-").replace(":","-")
             self.is_title = False
         #下面两个的判断顺序一定不能错
         if self.is_doi2:
