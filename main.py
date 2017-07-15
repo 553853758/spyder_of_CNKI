@@ -45,6 +45,7 @@ def search_by_date( search_date="" ):
     if not os.path.isdir("./doc/spyder_result/%s" % (search_date)):
         os.mkdir("./doc/spyder_result/%s" % (search_date))
     main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "w")
+    '''
     main_result.write("标题\t")
     main_result.write("关键词\t")
     main_result.write("摘要\t")
@@ -52,26 +53,36 @@ def search_by_date( search_date="" ):
     main_result.write("单位\t")
     main_result.write("DOI\t")
     main_result.write("分类号\n")
+    '''
 
     count_result = open("./doc/spyder_result/%s/统计.txt" % (search_date), "w")
     count_result.write("检索结果的总页数:%d\n\n" % (total_pages))
-    count_pages = 0
+    count_pages = 1
     essay_index = 0
     temp = []
-    while count_pages <= 0:  # 只爬一页
-        # while count_pages<=total_pages:
-        search_page = connectToSearchPage.get_cur_page()
-        searchPageParser = parse_search_page.SearchPageParser()
-        searchPageParser.feed(search_page)
-        url_list = searchPageParser.get_url_list()
-        print("Start the %dth page; Total page:%d" % (count_pages, total_pages))
+    #while count_pages <= 0:  # 只爬一页
+    error_place = ""
+    while count_pages<=total_pages:
+        error_place = ""
+        try:
+            connectToSearchPage.specific_page_connect(count_pages)
+            search_page = connectToSearchPage.get_cur_page()
+            searchPageParser = parse_search_page.SearchPageParser()
+            searchPageParser.feed(search_page)
+            url_list = searchPageParser.get_url_list()
+            print("Start the %dth page; Total page:%d" % (count_pages, total_pages))
+        except:
+            print("%dth page if failed to be start" % (count_pages, total_pages))
+            continue
 
         for url in url_list:
             # print("Connect to:"+url)
             try:
+                error_place = "Connect to essay"
                 connectToEssayPage = connect_to_essay.ConnectToEssayPage()
                 connectToEssayPage.set_essay_url(url)
                 essay_page = connectToEssayPage.essay_connect()
+                error_place = "Parse essay"
                 essayPageParser = parse_essay_page.EssayPageParser()
                 essayPageParser.feed(essay_page)
                 abstract = essayPageParser.get_abstract()
@@ -82,6 +93,7 @@ def search_by_date( search_date="" ):
                 author = essayPageParser.get_author()
                 organization = essayPageParser.get_organization()
                 classification = essayPageParser.get_classification()
+                error_place = "Write file"
                 if len(abstract) == 0:
                     abstract = "none"
                 if len(doi) == 0:
@@ -93,12 +105,15 @@ def search_by_date( search_date="" ):
                 if len(organization) == 0:
                     organization = "none"
                 main_result.write(title + "\t")
-                for keyword_index in range(0, len(keywords)):
-                    current_keyword = keywords[keyword_index].replace(";", "")
-                    if keyword_index < len(keywords) - 1:
-                        main_result.write(current_keyword + "&")
-                    else:
-                        main_result.write(current_keyword + "\t")
+                if keywords!="none":
+                    for keyword_index in range(0, len(keywords)):
+                        current_keyword = keywords[keyword_index].replace(";", "")
+                        if keyword_index < len(keywords) - 1:
+                            main_result.write(current_keyword + "&")
+                        else:
+                            main_result.write(current_keyword + "\t")
+                else:
+                    main_result.write(keywords + "\t")
                 main_result.write(abstract + "\t")
                 for author_index in range(0, len(author)):
                     current_author = author[author_index].replace(";", "")
@@ -116,6 +131,7 @@ def search_by_date( search_date="" ):
                 main_result.write(doi + "\t")
                 main_result.write(classification + "\n")
                 # 下面是该文章的参考文献
+                error_place = "Connect to type-reference"
                 connectToReferencePage = connect_to_reference.ConnectToReferencePage()
                 for refer_type in ["参考文献", "引证文献"]:  # list(reference_type.keys())[1:2]:
                     # for refer_type in list(reference_type.keys()):
@@ -137,6 +153,7 @@ def search_by_date( search_date="" ):
                     else:
                         cur_reference_result.close()
                         continue
+                    error_place = "Connect to son-reference."
                     for index in range(0, len(db_name)):  # 每个数据库单独遍历
                         db = db_name[index]
                         refer_count = db_count[index]
@@ -152,7 +169,7 @@ def search_by_date( search_date="" ):
                     cur_reference_result.close()
                 cur_reference_result.close()
             except:
-                print("Error!!!Error when parsing the essay.")
+                print("Error!!!Error when parsing the essay. Error place:%s"%(error_place))
                 # result.write("一次出错\n\n")
             essay_index += 1
         if searchPageParser.get_next_page_url():
@@ -162,6 +179,7 @@ def search_by_date( search_date="" ):
                 count_pages += 1
             except:
                 print("Fail to connect to the next_page. Try to connect to the specific page:%d" % (count_pages))
+                del connectToSearchPage
                 connectToSearchPage = connect_to_search_page.ConnectToSearchPage()
                 connectToSearchPage.set_search_date(search_date)
                 connectToSearchPage.AUTO()
@@ -170,32 +188,35 @@ def search_by_date( search_date="" ):
                     count_pages += 1
                 except:
                     print("Fail to connect to the specific page:%d" % (count_pages))
-                    time.sleep(60)
+                    time.sleep(10)
                     break
         else:
             print("Try to connect to the specific page:%d" % (count_pages))
             try:
                 print("Fail to connect to the specific page:%d. Waiting for the next connect." % (count_pages))
+                del connectToSearchPage
                 connectToSearchPage = connect_to_search_page.ConnectToSearchPage()
                 connectToSearchPage.set_search_date(search_date)
                 connectToSearchPage.AUTO()
             except:
-                time.sleep(60)
+                time.sleep(10)
                 continue
             try:
                 connectToSearchPage.specific_page_connect(count_pages)
                 count_pages += 1
             except:
                 print("Fail to connect to the specific page:%d" % (count_pages))
-                time.sleep(60)
+                time.sleep(10)
                 break
+        main_result.close()
+        main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "a+")
     print("Success in search date:" + str(search_date))
     main_result.close()
     count_result.close()
     return True
 
 if __name__ == "__main__":
-    for i in range(20170515,20170516):
+    for i in range(19790303,19790332):
         result = search_by_date(str(i))
         print("%d is over"%(i))
         time.sleep(60)
