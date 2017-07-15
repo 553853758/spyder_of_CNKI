@@ -2,6 +2,7 @@ import datetime
 import time
 import json
 import os
+import gc
 
 import connect_to_search_page
 import connect_to_essay
@@ -31,8 +32,8 @@ def search_by_date( search_date="" ):
             connectToSearchPage.set_search_date(search_date)
         except:
             print("Cannot parse the search_date")
-            pass
             return False
+            pass
     # 第一次进行搜索
     connectToSearchPage.AUTO()
     # 先解析一次
@@ -45,7 +46,6 @@ def search_by_date( search_date="" ):
     if not os.path.isdir("./doc/spyder_result/%s" % (search_date)):
         os.mkdir("./doc/spyder_result/%s" % (search_date))
     main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "w")
-    '''
     main_result.write("标题\t")
     main_result.write("关键词\t")
     main_result.write("摘要\t")
@@ -53,7 +53,6 @@ def search_by_date( search_date="" ):
     main_result.write("单位\t")
     main_result.write("DOI\t")
     main_result.write("分类号\n")
-    '''
 
     count_result = open("./doc/spyder_result/%s/统计.txt" % (search_date), "w")
     count_result.write("检索结果的总页数:%d\n\n" % (total_pages))
@@ -65,20 +64,33 @@ def search_by_date( search_date="" ):
     while count_pages<=total_pages:
         error_place = ""
         try:
-            connectToSearchPage.specific_page_connect(count_pages)
             search_page = connectToSearchPage.get_cur_page()
             searchPageParser = parse_search_page.SearchPageParser()
             searchPageParser.feed(search_page)
             url_list = searchPageParser.get_url_list()
             print("Start the %dth page; Total page:%d" % (count_pages, total_pages))
         except:
-            print("%dth page if failed to be start" % (count_pages, total_pages))
+            print("%dth page is failed to be start" % (count_pages, total_pages))
+            try:
+                connectToSearchPage.close()
+                del connectToSearchPage
+            except:
+                pass
+            connectToSearchPage = connect_to_search_page.ConnectToSearchPage()
+            connectToSearchPage.set_search_date(search_date)
+            connectToSearchPage.AUTO()
+            connectToSearchPage.specific_page_connect(count_pages)
             continue
 
         for url in url_list:
             # print("Connect to:"+url)
             try:
                 error_place = "Connect to essay"
+                try:
+                    connectToEssayPage.close()
+                    del connectToEssayPage
+                except:
+                    pass
                 connectToEssayPage = connect_to_essay.ConnectToEssayPage()
                 connectToEssayPage.set_essay_url(url)
                 essay_page = connectToEssayPage.essay_connect()
@@ -132,6 +144,11 @@ def search_by_date( search_date="" ):
                 main_result.write(classification + "\n")
                 # 下面是该文章的参考文献
                 error_place = "Connect to type-reference"
+                try:
+                    connectToReferencePage.close()
+                    del connectToReferencePage
+                except:
+                    pass
                 connectToReferencePage = connect_to_reference.ConnectToReferencePage()
                 for refer_type in ["参考文献", "引证文献"]:  # list(reference_type.keys())[1:2]:
                     # for refer_type in list(reference_type.keys()):
@@ -179,7 +196,11 @@ def search_by_date( search_date="" ):
                 count_pages += 1
             except:
                 print("Fail to connect to the next_page. Try to connect to the specific page:%d" % (count_pages))
-                del connectToSearchPage
+                try:
+                    connectToSearchPage.close()
+                    del connectToSearchPage
+                except:
+                    pass
                 connectToSearchPage = connect_to_search_page.ConnectToSearchPage()
                 connectToSearchPage.set_search_date(search_date)
                 connectToSearchPage.AUTO()
@@ -194,20 +215,27 @@ def search_by_date( search_date="" ):
             print("Try to connect to the specific page:%d" % (count_pages))
             try:
                 print("Fail to connect to the specific page:%d. Waiting for the next connect." % (count_pages))
-                del connectToSearchPage
+                try:
+                    connectToSearchPage.close()
+                    del connectToSearchPage
+                except:
+                    pass
                 connectToSearchPage = connect_to_search_page.ConnectToSearchPage()
                 connectToSearchPage.set_search_date(search_date)
                 connectToSearchPage.AUTO()
             except:
-                time.sleep(10)
+                time.sleep(5)
                 continue
             try:
                 connectToSearchPage.specific_page_connect(count_pages)
                 count_pages += 1
             except:
                 print("Fail to connect to the specific page:%d" % (count_pages))
-                time.sleep(10)
+                time.sleep(5)
                 break
+        if count_pages%3==0:
+            print(gc.collect())
+        #gc.collect()
         main_result.close()
         main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "a+")
     print("Success in search date:" + str(search_date))
@@ -216,7 +244,8 @@ def search_by_date( search_date="" ):
     return True
 
 if __name__ == "__main__":
-    for i in range(19790303,19790332):
+    #for i in range(19790303,19790332):
+    for i in range(20170701,20170702):
         result = search_by_date(str(i))
         print("%d is over"%(i))
         time.sleep(60)

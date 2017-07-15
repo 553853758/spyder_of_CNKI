@@ -12,7 +12,7 @@ class SearchPageParser(HTMLParser):
         self.next_page_url = ""#下一页的地址
         #计算总页面
         self.is_total_pages = False
-        self.total_pages = 100
+        self.total_pages = 0
 
     def handle_starttag(self, tag, attrs):
         if tag=="a":

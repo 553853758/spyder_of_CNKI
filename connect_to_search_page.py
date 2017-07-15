@@ -142,6 +142,11 @@ class ConnectToSearchPage():
         #self.save_cur_page()
         print( "Read the first search page over." )
 
+    def close(self):
+        self.opener.close()
+        self.handler.close()
+        return True
+
 if __name__ == "__main__":
     connectToSearchPage = ConnectToSearchPage()
     connectToSearchPage.AUTO()

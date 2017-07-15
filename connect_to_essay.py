@@ -49,6 +49,11 @@ class ConnectToEssayPage():
             paras[temp[0].lower()] = temp[1]
         return paras
 
+    def close(self):
+        self.opener.close()
+        self.handler.close()
+        return True
+
 def readSearchPage( file_path="search_page.txt" ):
     search_page = open(file_path,"r")
     page=""
