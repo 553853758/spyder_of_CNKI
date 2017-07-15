@@ -100,7 +100,7 @@ class ReferencePageParser(HTMLParser):
                 write_data = self.cur_refer
                 write_data = write_data.replace("\xa0","")
                 write_data = write_data.replace("\n","")
-                write_data = write_data.replace("\r","")
+                write_data = write_data.replace("\r","").replace("：","-").replace(":","-")
                 #write_data = write_data.replace(" ","")#网页的一些乱码清洗一下
                 self.reference.append( write_data )
             self.cur_refer=""

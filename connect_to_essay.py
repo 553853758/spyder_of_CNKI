@@ -33,6 +33,7 @@ class ConnectToEssayPage():
         return html
 
     def save_cur_page(self,file_name="./doc/essay_page.txt"):
+        self.cur_page = self.cur_page.replace("\ufeff","")
         f = open(file_name, "w")
         f.write(self.cur_page)
         f.close()
@@ -59,7 +60,8 @@ if __name__ == "__main__":
     connectToEssayPage = ConnectToEssayPage()
     #url = '/kns/detail/detail.aspx?QueryID=0&CurRec=20&FileName=GZSZ201710021&DbName=CJFDTEMN&DbCode=CJFQ&pr=CFJD2017'
     #url = "/KCMS/detail/detail.aspx?dbcode=CJFQ&dbname=CJFDLAST2015&filename=GGYY201410012&v=MjI5ODhIOVhOcjQ5RVpvUjhlWDFMdXhZUzdEaDFUM3FUcldNMUZyQ1VSTDJmWWVSdkZ5M2hWYjNJSWlyU2Q3RzQ="
-    url = "http://kns.cnki.net/KCMS/detail/detail.aspx?dbcode=CJFQ&dbname=CJFDLAST2017&filename=GHZH201705007&v=MjU4MTc0UjhlWDFMdXhZUzdEaDFUM3FUcldNMUZyQ1VSTDJmWWVSdkZ5SGdWcnpCSWlYUlpyRzRIOWJNcW85Rlk="
+    #url = "http://kns.cnki.net/KCMS/detail/detail.aspx?dbcode=CJFQ&dbname=CJFDLAST2017&filename=GHZH201705007&v=MjU4MTc0UjhlWDFMdXhZUzdEaDFUM3FUcldNMUZyQ1VSTDJmWWVSdkZ5SGdWcnpCSWlYUlpyRzRIOWJNcW85Rlk="
+    url = 'http://kns.cnki.net/KCMS/detail/detail.aspx?dbcode=CJFQ&dbname=CJFD7984&filename=JLDB197901013&v=MDgyODRiTEt4R2RqTXJvOUVaNFI4ZVgxTHV4WVM3RGgxVDNxVHJXTTFGckNVUkwyZllPZHJGeXZrV3J6TEx5SFA='
     connectToEssayPage.set_essay_url(url)
     essay_page = connectToEssayPage.essay_connect()
     connectToEssayPage.save_cur_page()
