@@ -3,6 +3,8 @@ import time
 import json
 import os
 import gc
+from gevent import monkey; monkey.patch_all()
+import gevent
 
 import connect_to_search_page
 import connect_to_essay
@@ -11,11 +13,133 @@ import parse_search_page
 import parse_essay_page
 import parse_reference_page
 
+Jan = ["0"+str(i) for i in range(101,132)]
+Feb = ["0"+str(i) for i in range(201,229)]
+Mar = ["0"+str(i) for i in range(301,332)]
+Apr = ["0"+str(i) for i in range(401,431)]
+May = ["0"+str(i) for i in range(501,532)]
+Jun = ["0"+str(i) for i in range(601,631)]
+Jul = ["0"+str(i) for i in range(701,732)]
+Aug = ["0"+str(i) for i in range(801,832)]
+Sep = ["0"+str(i) for i in range(901,931)]
+Oct = [str(i) for i in range(1001,1032)]
+Nov = [str(i) for i in range(1101,1131)]
+Dec = [str(i) for i in range(1201,1232)]
+Months = {"1":Jan,"2":Feb,"3":Mar,"4":Apr,"5":May,"6":Jun,"7":Jul,"8":Aug,"9":Sep,"10":Oct,"11":Nov,"12":Dec}
+
 def readPage( file_path="search_page.txt" ):
     page = open(file_path,"r")
     for line in page.readlines():
         page+=line
     return page
+
+def download_article(url,main_result,reference_type,search_date):
+            try:
+                error_place = "Connect to essay"
+                connectToEssayPage = connect_to_essay.ConnectToEssayPage()
+                connectToEssayPage.set_essay_url(url)
+                essay_page = connectToEssayPage.essay_connect()
+                error_place = "Parse essay"
+                essayPageParser = parse_essay_page.EssayPageParser()
+                essayPageParser.feed(essay_page)
+                abstract = essayPageParser.get_abstract()
+                # print(abstract)
+                keywords = essayPageParser.get_keywords()
+                title = essayPageParser.get_title()
+                doi = essayPageParser.get_doi()
+                author = essayPageParser.get_author()
+                organization = essayPageParser.get_organization()
+                classification = essayPageParser.get_classification()
+                error_place = "Write file"
+                if len(abstract) == 0:
+                    abstract = "none"
+                if len(doi) == 0:
+                    doi = "none"
+                if len(classification) == 0:
+                    classification = "none"
+                if len(author) == 0:
+                    author = ["none"]
+                if len(organization) == 0:
+                    organization = ["none"]
+                write_data = ""
+                write_data += title + "\t"
+                if keywords == "none" or len(keywords)==0:
+                    keywords = ["none"]
+                for keyword_index in range(0, len(keywords)):
+                    current_keyword = keywords[keyword_index].replace(";", "")
+                    if keyword_index < len(keywords) - 1:
+                        write_data += (current_keyword + "&")
+                    else:
+                        write_data += (current_keyword + "\t")
+                write_data += (abstract + "\t")
+                for author_index in range(0, len(author)):
+                    current_author = author[author_index].replace(";", "")
+                    if author_index < len(author) - 1:
+                        write_data += (current_author + "&")
+                    else:
+                        write_data += (current_author + "\t")
+                for organization_index in range(0, len(organization)):
+                    current_organization = organization[organization_index].replace(";", "")
+                    if organization_index < len(organization) - 1:
+                        write_data += (current_organization + "&")
+                    else:
+                        write_data += (current_organization + "\t")
+
+                write_data += (doi + "\t")
+                write_data += (classification + "\n")
+                main_result.write(write_data)
+                # 下面是该文章的参考文献
+                error_place = "Connect to type-reference"
+                connectToReferencePage = connect_to_reference.ConnectToReferencePage()
+                for refer_type in ["参考文献", "引证文献"]:  # list(reference_type.keys())[1:2]:
+                    # for refer_type in list(reference_type.keys()):
+                    # refer_type是中文名，type_num是对应的索引号
+                    if not os.path.isdir("./doc/spyder_result/%s/%s" % (search_date, refer_type)):
+                        os.mkdir("./doc/spyder_result/%s/%s" % (search_date, refer_type))
+                    type_num = reference_type[refer_type]
+                    connectToReferencePage.set_reference_url(url, type_num)
+                    reference_page = connectToReferencePage.reference_connect()
+                    # 先获取这类参考文献，有多少个数据库，及每个数据库的名字、页数
+                    referencePageParserBrief = parse_reference_page.ReferencePageParserBrief()
+                    referencePageParserBrief.feed(reference_page)
+                    db_name, db_count, db_page, db_id = referencePageParserBrief.get_reference_information()
+                    if len(db_count) == len(db_name) and len(db_count) > 0:  # 这一类参考文献有时，才写
+                        # print(db_name)
+                        pass
+                    else:
+                        return True
+                    cur_reference_result = open("./doc/spyder_result/%s/%s/%s.txt" % (search_date, refer_type, title),
+                                                "w")
+                    error_place = "Connect to son-reference."
+                    for index in range(0, len(db_name)):  # 每个数据库单独遍历
+                        db = db_name[index]
+                        #refer_count = db_count[index]
+                        refer_page_count = db_page[index]
+                        for p in range(1, refer_page_count + 1):  # 这个数据库要遍历这么多页
+                            connectToReferencePage.set_specific_page(db, p)  # 取特定的页
+                            cur_page = connectToReferencePage.reference_connect()
+                            referencePageParser = parse_reference_page.ReferencePageParser(db)
+                            referencePageParser.feed(cur_page)
+                            refer = referencePageParser.get_reference()
+                            for r in refer:
+                                cur_reference_result.write('%s\n' % (r))
+                    cur_reference_result.close()
+                cur_reference_result.close()
+            except:
+                print("Error!!!Error when parsing the essay. Error place:%s"%(error_place))
+                # result.write("一次出错\n\n")
+                return False
+            try:
+                connectToEssayPage.close()
+                del connectToEssayPage
+            except:
+                pass
+            try:
+                connectToReferencePage.close()
+                del connectToReferencePage
+            except:
+                pass
+            return True
 
 def search_by_date( search_date="" ):
     # 读入参考文献的类型
@@ -46,6 +170,8 @@ def search_by_date( search_date="" ):
     if not os.path.isdir("./doc/spyder_result/%s" % (search_date)):
         os.mkdir("./doc/spyder_result/%s" % (search_date))
     main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "w")
+    count_pages = 1
+    
     main_result.write("标题\t")
     main_result.write("关键词\t")
     main_result.write("摘要\t")
@@ -54,11 +180,11 @@ def search_by_date( search_date="" ):
     main_result.write("DOI\t")
     main_result.write("分类号\n")
 
+
     count_result = open("./doc/spyder_result/%s/统计.txt" % (search_date), "w")
     count_result.write("检索结果的总页数:%d\n\n" % (total_pages))
-    count_pages = 1
     essay_index = 0
-    temp = []
+    #temp = []
     #while count_pages <= 0:  # 只爬一页
     error_place = ""
     while count_pages<=total_pages:
@@ -82,113 +208,13 @@ def search_by_date( search_date="" ):
             connectToSearchPage.specific_page_connect(count_pages)
             continue
 
+        url_thread = []
         for url in url_list:
             # print("Connect to:"+url)
-            try:
-                error_place = "Connect to essay"
-                try:
-                    connectToEssayPage.close()
-                    del connectToEssayPage
-                except:
-                    pass
-                connectToEssayPage = connect_to_essay.ConnectToEssayPage()
-                connectToEssayPage.set_essay_url(url)
-                essay_page = connectToEssayPage.essay_connect()
-                error_place = "Parse essay"
-                essayPageParser = parse_essay_page.EssayPageParser()
-                essayPageParser.feed(essay_page)
-                abstract = essayPageParser.get_abstract()
-                # print(abstract)
-                keywords = essayPageParser.get_keywords()
-                title = essayPageParser.get_title()
-                doi = essayPageParser.get_doi()
-                author = essayPageParser.get_author()
-                organization = essayPageParser.get_organization()
-                classification = essayPageParser.get_classification()
-                error_place = "Write file"
-                if len(abstract) == 0:
-                    abstract = "none"
-                if len(doi) == 0:
-                    doi = "none"
-                if len(classification) == 0:
-                    classification = "none"
-                if len(author) == 0:
-                    author = "none"
-                if len(organization) == 0:
-                    organization = "none"
-                main_result.write(title + "\t")
-                if keywords!="none":
-                    for keyword_index in range(0, len(keywords)):
-                        current_keyword = keywords[keyword_index].replace(";", "")
-                        if keyword_index < len(keywords) - 1:
-                            main_result.write(current_keyword + "&")
-                        else:
-                            main_result.write(current_keyword + "\t")
-                else:
-                    main_result.write(keywords + "\t")
-                main_result.write(abstract + "\t")
-                for author_index in range(0, len(author)):
-                    current_author = author[author_index].replace(";", "")
-                    if author_index < len(author) - 1:
-                        main_result.write(current_author + "&")
-                    else:
-                        main_result.write(current_author + "\t")
-                for organization_index in range(0, len(organization)):
-                    current_organization = organization[organization_index].replace(";", "")
-                    if organization_index < len(organization) - 1:
-                        main_result.write(current_organization + "&")
-                    else:
-                        main_result.write(current_organization + "\t")
-
-                main_result.write(doi + "\t")
-                main_result.write(classification + "\n")
-                # 下面是该文章的参考文献
-                error_place = "Connect to type-reference"
-                try:
-                    connectToReferencePage.close()
-                    del connectToReferencePage
-                except:
-                    pass
-                connectToReferencePage = connect_to_reference.ConnectToReferencePage()
-                for refer_type in ["参考文献", "引证文献"]:  # list(reference_type.keys())[1:2]:
-                    # for refer_type in list(reference_type.keys()):
-                    # refer_type是中文名，type_num是对应的索引号
-                    if not os.path.isdir("./doc/spyder_result/%s/%s" % (search_date, refer_type)):
-                        os.mkdir("./doc/spyder_result/%s/%s" % (search_date, refer_type))
-                    cur_reference_result = open("./doc/spyder_result/%s/%s/%s.txt" % (search_date, refer_type, title),
-                                                "w")
-                    type_num = reference_type[refer_type]
-                    connectToReferencePage.set_reference_url(url, type_num)
-                    reference_page = connectToReferencePage.reference_connect()
-                    # 先获取这类参考文献，有多少个数据库，及每个数据库的名字、页数
-                    referencePageParserBrief = parse_reference_page.ReferencePageParserBrief()
-                    referencePageParserBrief.feed(reference_page)
-                    db_name, db_count, db_page, db_id = referencePageParserBrief.get_reference_information()
-                    if len(db_count) == len(db_name) and len(db_count) > 0:  # 这一类参考文献有时，才写
-                        # print(db_name)
-                        pass
-                    else:
-                        cur_reference_result.close()
-                        continue
-                    error_place = "Connect to son-reference."
-                    for index in range(0, len(db_name)):  # 每个数据库单独遍历
-                        db = db_name[index]
-                        refer_count = db_count[index]
-                        refer_page_count = db_page[index]
-                        for p in range(1, refer_page_count + 1):  # 这个数据库要遍历这么多页
-                            connectToReferencePage.set_specific_page(db, p)  # 取特定的页
-                            cur_page = connectToReferencePage.reference_connect()
-                            referencePageParser = parse_reference_page.ReferencePageParser(db)
-                            referencePageParser.feed(cur_page)
-                            refer = referencePageParser.get_reference()
-                            for r in refer:
-                                cur_reference_result.write('%s\n' % (r))
-                    cur_reference_result.close()
-                cur_reference_result.close()
-            except:
-                print("Error!!!Error when parsing the essay. Error place:%s"%(error_place))
-                # result.write("一次出错\n\n")
+            url_thread.append( gevent.spawn(download_article,url,main_result,reference_type,search_date) )
             essay_index += 1
+        gevent.joinall(url_thread)
+        del url_thread
         if searchPageParser.get_next_page_url():
             try:
                 connectToSearchPage.next_page_connect(searchPageParser.get_next_page_url())
@@ -209,7 +235,7 @@ def search_by_date( search_date="" ):
                     count_pages += 1
                 except:
                     print("Fail to connect to the specific page:%d" % (count_pages))
-                    time.sleep(10)
+                    time.sleep(2)
                     break
         else:
             print("Try to connect to the specific page:%d" % (count_pages))
@@ -224,16 +250,16 @@ def search_by_date( search_date="" ):
                 connectToSearchPage.set_search_date(search_date)
                 connectToSearchPage.AUTO()
             except:
-                time.sleep(5)
+                time.sleep(2)
                 continue
             try:
                 connectToSearchPage.specific_page_connect(count_pages)
                 count_pages += 1
             except:
                 print("Fail to connect to the specific page:%d" % (count_pages))
-                time.sleep(5)
+                time.sleep(2)
                 break
-        if count_pages%3==0:
+        if count_pages%20==0:
             print(gc.collect())
         #gc.collect()
         main_result.close()
@@ -241,12 +267,23 @@ def search_by_date( search_date="" ):
     print("Success in search date:" + str(search_date))
     main_result.close()
     count_result.close()
+    print(gc.collect())
     return True
 
 if __name__ == "__main__":
-    #for i in range(19790303,19790332):
-    for i in range(20170701,20170702):
-        result = search_by_date(str(i))
-        print("%d is over"%(i))
-        time.sleep(60)
+    for search_date in range(19790301,19790332):
+        result = search_by_date(search_date)
+        print("%s is over"%(search_date))
+        time.sleep(3)
+    '''
+    years = ["1979"]
+    for year in years:
+        for month in range(3,13):
+            for day in Months[str(month)]:
+                search_date = year+day
+                print(search_date)
+                result = search_by_date(search_date)
+                print("%s is over"%(search_date))
+                time.sleep(3)
+    '''
     print("over")
