@@ -66,6 +66,12 @@ def download_article(url,main_result,reference_type,search_date):
                 write_data += title + "\t"
                 if keywords == "none" or len(keywords)==0:
                     keywords = ["none"]
+                if type(keywords) != list:
+                    keywords = [keywords]
+                if type(author) != list:
+                    author = [author]
+                if type(organization) != list:
+                    organization = [organization]
                 for keyword_index in range(0, len(keywords)):
                     current_keyword = keywords[keyword_index].replace(";", "")
                     if keyword_index < len(keywords) - 1:
