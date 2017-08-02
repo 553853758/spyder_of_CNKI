@@ -3,8 +3,9 @@ import time
 import json
 import os
 import gc
-from gevent import monkey; monkey.patch_all()
+import random
 import gevent
+from gevent import monkey; monkey.patch_all()
 
 import connect_to_search_page
 import connect_to_essay
@@ -139,6 +140,7 @@ def download_article(url,main_result,reference_type,search_date):
                 del connectToReferencePage
             except:
                 pass
+            time.sleep(random.uniform(0,2))
             return True
 
 def search_by_date( search_date="" ):
@@ -215,6 +217,7 @@ def search_by_date( search_date="" ):
             essay_index += 1
         gevent.joinall(url_thread)
         del url_thread
+        time.sleep(random.uniform(2,4))
         if searchPageParser.get_next_page_url():
             try:
                 connectToSearchPage.next_page_connect(searchPageParser.get_next_page_url())
@@ -235,7 +238,7 @@ def search_by_date( search_date="" ):
                     count_pages += 1
                 except:
                     print("Fail to connect to the specific page:%d" % (count_pages))
-                    time.sleep(2)
+                    time.sleep(random.uniform(2,4))
                     break
         else:
             print("Try to connect to the specific page:%d" % (count_pages))
@@ -250,14 +253,14 @@ def search_by_date( search_date="" ):
                 connectToSearchPage.set_search_date(search_date)
                 connectToSearchPage.AUTO()
             except:
-                time.sleep(2)
+                    time.sleep(random.uniform(2,4))
                 continue
             try:
                 connectToSearchPage.specific_page_connect(count_pages)
                 count_pages += 1
             except:
                 print("Fail to connect to the specific page:%d" % (count_pages))
-                time.sleep(2)
+                    time.sleep(random.uniform(2,4))
                 break
         if count_pages%20==0:
             print(gc.collect())
