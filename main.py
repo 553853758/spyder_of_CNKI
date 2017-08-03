@@ -149,7 +149,7 @@ def download_article(url,main_result,reference_type,search_date):
             time.sleep(random.uniform(0,2))
             return True
 
-def search_by_date( search_date="" ):
+def search_by_date( search_date="",start_page=1 ):
     # 读入参考文献的类型
     reference_type = json.load(open("./doc/reference_type.json", "r",encoding="utf-8"))
     # 初始化连接方式
@@ -177,24 +177,26 @@ def search_by_date( search_date="" ):
     print("Search date:%s\n" % (search_date))
     if not os.path.isdir("./doc/spyder_result/%s" % (search_date)):
         os.mkdir("./doc/spyder_result/%s" % (search_date))
-    main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "w")
-    count_pages = 1
-    
-    main_result.write("标题\t")
-    main_result.write("关键词\t")
-    main_result.write("摘要\t")
-    main_result.write("作者\t")
-    main_result.write("单位\t")
-    main_result.write("DOI\t")
-    main_result.write("分类号\n")
-
-
-    count_result = open("./doc/spyder_result/%s/统计.txt" % (search_date), "w")
-    count_result.write("检索结果的总页数:%d\n\n" % (total_pages))
+    count_pages = start_page
+    if count_pages == 1:
+        main_result = open( "./doc/spyder_result/%s/检索结果.txt" % (search_date), "w")
+        main_result.write("标题\t")
+        main_result.write("关键词\t")
+        main_result.write("摘要\t")
+        main_result.write("作者\t")
+        main_result.write("单位\t")
+        main_result.write("DOI\t")
+        main_result.write("分类号\n")
+        count_result = open("./doc/spyder_result/%s/统计.txt" % (search_date), "w")
+        count_result.write("检索结果的总页数:%d\n\n" % (total_pages))
+    else:
+        main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "a+")
     essay_index = 0
     #temp = []
     #while count_pages <= 0:  # 只爬一页
     error_place = ""
+    log_result = open("./doc/log.txt","a+")
+    log_result.write("%s ------ search_date%s\n"%( time.asctime(time.localtime(time.time())),search_date ))
     while count_pages<=total_pages:
         error_place = ""
         try:
@@ -223,6 +225,7 @@ def search_by_date( search_date="" ):
             essay_index += 1
         gevent.joinall(url_thread)
         del url_thread
+        
         time.sleep(random.uniform(2,4))
         if searchPageParser.get_next_page_url():
             try:
@@ -259,20 +262,22 @@ def search_by_date( search_date="" ):
                 connectToSearchPage.set_search_date(search_date)
                 connectToSearchPage.AUTO()
             except:
-                    time.sleep(random.uniform(2,4))
+                time.sleep(random.uniform(2,4))
                 continue
             try:
                 connectToSearchPage.specific_page_connect(count_pages)
                 count_pages += 1
             except:
                 print("Fail to connect to the specific page:%d" % (count_pages))
-                    time.sleep(random.uniform(2,4))
+                time.sleep(random.uniform(2,4))
                 break
         if count_pages%20==0:
+            log_result.write("Search date:%s --- Page:%s --- is over\n"%(search_date,count_pages))
             print(gc.collect())
         #gc.collect()
         main_result.close()
         main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "a+")
+        time.sleep(random.uniform(2,4))
     print("Success in search date:" + str(search_date))
     main_result.close()
     count_result.close()
