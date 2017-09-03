@@ -1,5 +1,9 @@
 import urllib
 import http.cookiejar as cookielib
+import time
+import random
+import socket
+socket.setdefaulttimeout(10) 
 
 class ConnectToEssayPage():
     def __init__(self):
@@ -26,11 +30,23 @@ class ConnectToEssayPage():
 
     def essay_connect(self):
         postdata=urllib.parse.urlencode(self.parameter)
-        req = urllib.request.Request(self.hosturl + postdata, headers=self.headers)
-        #print(self.hosturl + postdata)
-        html = self.opener.open(req).read().decode("utf-8")
-        self.cur_page = html
-        return html
+        try:
+            req = urllib.request.Request(self.hosturl + postdata, headers=self.headers)
+            #print(self.hosturl + postdata)
+            html = self.opener.open(req).read().decode("utf-8")
+            self.cur_page = html
+            return html
+        except:
+            print("Time out ot connect to essay. Try again")
+            time.sleep(random.uniform(10,21))
+            try:
+                result = self.opener.open(req)
+                html=result.read().decode("utf-8")
+                self.cur_page = html
+                return html
+            except:
+                print("Time out ot connect to journal. Give up")
+                return "None"
 
     def save_cur_page(self,file_name="./doc/essay_page.txt"):
         self.cur_page = self.cur_page.replace("\ufeff","")

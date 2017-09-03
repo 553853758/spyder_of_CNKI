@@ -5,6 +5,8 @@ import os
 import gc
 import random
 import gevent
+import socket
+socket.setdefaulttimeout(10) 
 from gevent import monkey; monkey.patch_all()
 
 import connect_to_search_page
@@ -34,7 +36,7 @@ def readPage( file_path="search_page.txt" ):
         page+=line
     return page
 
-def download_article(url,main_result,reference_type,search_date):
+def download_article(url,result_root_path,main_result,reference_type,search_date):
             try:
                 error_place = "Connect to essay"
                 connectToEssayPage = connect_to_essay.ConnectToEssayPage()
@@ -101,8 +103,8 @@ def download_article(url,main_result,reference_type,search_date):
                 for refer_type in ["参考文献", "引证文献"]:  # list(reference_type.keys())[1:2]:
                     # for refer_type in list(reference_type.keys()):
                     # refer_type是中文名，type_num是对应的索引号
-                    if not os.path.isdir("./doc/spyder_result/%s/%s" % (search_date, refer_type)):
-                        os.mkdir("./doc/spyder_result/%s/%s" % (search_date, refer_type))
+                    if not os.path.isdir(result_root_path+"%s/%s" % (search_date, refer_type)):
+                        os.mkdir(result_root_path+"%s/%s" % (search_date, refer_type))
                     type_num = reference_type[refer_type]
                     connectToReferencePage.set_reference_url(url, type_num)
                     reference_page = connectToReferencePage.reference_connect()
@@ -115,7 +117,7 @@ def download_article(url,main_result,reference_type,search_date):
                         pass
                     else:
                         return True
-                    cur_reference_result = open("./doc/spyder_result/%s/%s/%s.txt" % (search_date, refer_type, title),
+                    cur_reference_result = open(result_root_path+"%s/%s/%s.txt" % (search_date, refer_type, title),
                                                 "w")
                     error_place = "Connect to son-reference."
                     for index in range(0, len(db_name)):  # 每个数据库单独遍历
@@ -174,12 +176,13 @@ def search_by_date( search_date="",start_page=1 ):
     searchPageParser.feed(search_page)
     total_pages = searchPageParser.total_pages
     # 输出结果
+    result_root_path = "../spyder_result/"
     print("Search date:%s\n" % (search_date))
-    if not os.path.isdir("./doc/spyder_result/%s" % (search_date)):
-        os.mkdir("./doc/spyder_result/%s" % (search_date))
+    if not os.path.isdir(result_root_path+"%s" % (search_date)):
+        os.mkdir(result_root_path+"%s" % (search_date))
     count_pages = start_page
     if count_pages == 1:
-        main_result = open( "./doc/spyder_result/%s/检索结果.txt" % (search_date), "w")
+        main_result = open( result_root_path+"%s/检索结果.txt" % (search_date), "w")
         main_result.write("标题\t")
         main_result.write("关键词\t")
         main_result.write("摘要\t")
@@ -187,10 +190,10 @@ def search_by_date( search_date="",start_page=1 ):
         main_result.write("单位\t")
         main_result.write("DOI\t")
         main_result.write("分类号\n")
-        count_result = open("./doc/spyder_result/%s/统计.txt" % (search_date), "w")
+        count_result = open(result_root_path+"%s/统计.txt" % (search_date), "w")
         count_result.write("检索结果的总页数:%d\n\n" % (total_pages))
     else:
-        main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "a+")
+        main_result = open(result_root_path+"%s/检索结果.txt" % (search_date), "a+")
     essay_index = 0
     #temp = []
     #while count_pages <= 0:  # 只爬一页
@@ -207,6 +210,7 @@ def search_by_date( search_date="",start_page=1 ):
             print("Start the %dth page; Total page:%d" % (count_pages, total_pages))
         except:
             print("%dth page is failed to be start" % (count_pages, total_pages))
+            time.sleep(random.uniform(2,4))
             try:
                 connectToSearchPage.close()
                 del connectToSearchPage
@@ -221,18 +225,19 @@ def search_by_date( search_date="",start_page=1 ):
         url_thread = []
         for url in url_list:
             # print("Connect to:"+url)
-            url_thread.append( gevent.spawn(download_article,url,main_result,reference_type,search_date) )
+            url_thread.append( gevent.spawn(download_article,url,result_root_path,main_result,reference_type,search_date) )
             essay_index += 1
         gevent.joinall(url_thread)
         del url_thread
         
-        time.sleep(random.uniform(2,4))
+        time.sleep(random.uniform(4,10))
         if searchPageParser.get_next_page_url():
             try:
                 connectToSearchPage.next_page_connect(searchPageParser.get_next_page_url())
                 # print("One title for example:%s\n"%(title))
                 count_pages += 1
             except:
+                time.sleep(random.uniform(2,4))
                 print("Fail to connect to the next_page. Try to connect to the specific page:%d" % (count_pages))
                 try:
                     connectToSearchPage.close()
@@ -252,6 +257,7 @@ def search_by_date( search_date="",start_page=1 ):
         else:
             print("Try to connect to the specific page:%d" % (count_pages))
             try:
+                time.sleep(random.uniform(2,4))
                 print("Fail to connect to the specific page:%d. Waiting for the next connect." % (count_pages))
                 try:
                     connectToSearchPage.close()
@@ -276,7 +282,7 @@ def search_by_date( search_date="",start_page=1 ):
             print(gc.collect())
         #gc.collect()
         main_result.close()
-        main_result = open("./doc/spyder_result/%s/检索结果.txt" % (search_date), "a+")
+        main_result = open(result_root_path+"%s/检索结果.txt" % (search_date), "a+")
         time.sleep(random.uniform(2,4))
     print("Success in search date:" + str(search_date))
     main_result.close()
@@ -285,19 +291,28 @@ def search_by_date( search_date="",start_page=1 ):
     return True
 
 if __name__ == "__main__":
-    for search_date in range(19790301,19790332):
+    '''
+    for search_date in range(19790401,19790431):
         result = search_by_date(search_date)
         print("%s is over"%(search_date))
         time.sleep(3)
     '''
-    years = ["1979"]
+    years = ["1989"]
     for year in years:
-        for month in range(3,13):
-            for day in Months[str(month)]:
-                search_date = year+day
-                print(search_date)
-                result = search_by_date(search_date)
-                print("%s is over"%(search_date))
-                time.sleep(3)
-    '''
+        if year == "1987":
+            for month in range(12,13):
+                for day in [str(i) for i in range(27,28)]:
+                    search_date = year+str(month)+str(day)
+                    print(search_date)
+                    result = search_by_date(search_date)
+                    print("%s is over"%(search_date))
+                    time.sleep(3)
+        else:
+            for month in range(1,13):
+                for day in Months[str(month)]:
+                    search_date = year+day
+                    print(search_date)
+                    result = search_by_date(search_date)
+                    print("%s is over"%(search_date))
+                    time.sleep(3)
     print("over")

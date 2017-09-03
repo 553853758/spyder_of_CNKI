@@ -6,6 +6,8 @@
 import urllib
 import datetime
 import http.cookiejar as cookielib
+import time
+import random
 
 class ConnectToSearchPage():
     def __init__(self):
@@ -61,42 +63,81 @@ class ConnectToSearchPage():
     def first_connect(self):
         #开始第一次申请
         postdata1=urllib.parse.urlencode(self.parameter1)
-        req = urllib.request.Request(self.url1+postdata1,headers=self.headers)
-        html= self.opener.open(req).read().decode("utf-8")
-        return html
+        try:
+            req = urllib.request.Request(self.url1+postdata1,headers=self.headers)
+            html= self.opener.open(req).read().decode("utf-8")
+            return html
+        except:
+            time.sleep(random.uniform(10,21))
+            req = urllib.request.Request(self.url1+postdata1,headers=self.headers)
+            html= self.opener.open(req).read().decode("utf-8")
+            return html
 
     def second_connect(self):
         #开始第二次申请
         postdata2=urllib.parse.urlencode(self.parameter2)
-        req2=urllib.request.Request(self.url2+postdata2,headers=self.headers)
-        result2 = self.opener.open(req2)
-        html=result2.read().decode("utf-8")
-        self.cur_page = html
-        return html
+        try:
+            req2=urllib.request.Request(self.url2+postdata2,headers=self.headers)
+            result2 = self.opener.open(req2)
+            html=result2.read().decode("utf-8")
+            self.cur_page = html
+            return html
+        except:
+            time.sleep(random.uniform(10,21))
+            req2=urllib.request.Request(self.url2+postdata2,headers=self.headers)
+            result2 = self.opener.open(req2)
+            html=result2.read().decode("utf-8")
+            self.cur_page = html
+            return html
+            
 
     def next_page_connect(self,url):
         try:
             postdata_next = urllib.parse.urlencode( url )
         except:
-            postdata_next =url
+            postdata_next = url
         #print(self.hosturl_next + postdata_next)
-        req = urllib.request.Request(self.hosturl_next + postdata_next, headers=self.headers)
-        html = self.opener.open(req).read().decode("utf-8")
-        self.cur_page = html
-        #self.save_cur_page(str(time.time()))
-        #print(self.cur_page)
-        #print("Success in connecting the next page")
-        return html
+        try:
+            req = urllib.request.Request(self.hosturl_next + postdata_next, headers=self.headers)
+            html = self.opener.open(req).read().decode("utf-8")
+            self.cur_page = html
+            #self.save_cur_page(str(time.time()))
+            #print(self.cur_page)
+            #print("Success in connecting the next page")
+            return html
+        except:
+            print("Time out ot connect to search page. Try again")
+            time.sleep(random.uniform(10,21))
+            try:
+                result = self.opener.open(req)
+                html=result.read().decode("utf-8")
+                self.cur_page = html
+                return html
+            except:
+                print("Time out ot connect to search page. Give up")
+                return "None"
 
     def specific_page_connect(self,index):#进入特定的某一页
-        postdata_next ="?curpage="+str(index)+"&RecordsPerPage=20&QueryID=1&ID=&turnpage=1&tpagemode=L&dbPrefix=SCDB&Fields=&DisplayMode=listmode&PageName=ASP.brief_result_aspx"
-        req = urllib.request.Request(self.hosturl_next + postdata_next, headers=self.headers)
-        html = self.opener.open(req).read().decode("utf-8")
-        self.cur_page = html
-        #self.save_cur_page(str(time.time()))
-        #print(self.cur_page)
-        #print("Success in connecting the next page")
-        return html
+        postdata_next ="?curpage="+str(index)+"&RecordsPerPage=20&QueryID=1&ID=&turnpage=1&tpagemode=L&dbPrefix=SCDB&Fields=&DisplayMode=listmode&PageName=ASP.brief_result_aspx"   
+        try:
+            req = urllib.request.Request(self.hosturl_next + postdata_next, headers=self.headers)
+            html = self.opener.open(req).read().decode("utf-8")
+            self.cur_page = html
+            #self.save_cur_page(str(time.time()))
+            #print(self.cur_page)
+            #print("Success in connecting the next page")
+            return html
+        except:
+            print("Time out ot connect to specific_page. Try again")
+            time.sleep(random.uniform(10,21))
+            try:
+                result = self.opener.open(req)
+                html=result.read().decode("utf-8")
+                self.cur_page = html
+                return html
+            except:
+                print("Time out ot connect to specific_page. Give up")
+                return "None"
 
     def save_cur_page(self,file_name="./doc/search_page.txt"):
         f = open(file_name, "w")
